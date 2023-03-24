@@ -23,17 +23,17 @@
 <meta property="og:site_name" content="YJwu2023的Blog">
 <meta property="og:description" content="对于virtio的简介与其在PCI bus上的实现">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://yjwu2023.github.io/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
-<meta property="og:image" content="https://yjwu2023.github.io/.com//Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
-<meta property="og:image" content="https://yjwu2023.github.io/.com//Virtqueue%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84.png">
+<meta property="og:image" content="https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
+<meta property="og:image" content="https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
+<meta property="og:image" content="https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/Virtqueue%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84.png">
 <meta property="article:published_time" content="2023-03-23T13:10:17.000Z">
-<meta property="article:modified_time" content="2023-03-24T18:37:01.369Z">
+<meta property="article:modified_time" content="2023-03-24T19:10:21.787Z">
 <meta property="article:author" content="YJwu2023">
 <meta property="article:tag" content="操作系统开发">
 <meta property="article:tag" content="驱动开发">
 <meta property="article:tag" content="PCI">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://yjwu2023.github.io/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
+<meta name="twitter:image" content="https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
   
   <!-- 站点验证相关 -->
   
@@ -143,7 +143,7 @@
                     <i class="fa fa-edit"></i> 
                     
                     
-                        ~6.28K
+                        ~6.87K
                     
                     字
                 </li>
@@ -154,7 +154,7 @@
             
             <div id="expire-alert" class="alert alert-warning hidden" role="alert">
                 <div class="icon"><i class="fa fa-warning"></i></div>
-                <div class="text"><p>本文最后编辑于 <time datetime="1679683021369"></time> 前，其中的内容可能需要更新。</p></div>
+                <div class="text"><p>本文最后编辑于 <time datetime="1679685021787"></time> 前，其中的内容可能需要更新。</p></div>
             </div>
             
             
@@ -172,11 +172,15 @@
 <p>全虚拟设备交互流程：</p>
 <p>默认情况下使用QEMU模拟I&#x2F;O的情况下，当客户机中的设备驱动程序（device driver）发起I&#x2F;O操作请求之时，KVM模块中的I&#x2F;O操作捕获代码会拦截这次I&#x2F;O请求，然后经过处理后将本次I&#x2F;O请求的信息存放到I&#x2F;O共享页，并通知用户控件的QEMU程序。QEMU模拟程序获得I&#x2F;O操作的具体信息之后，交由硬件模拟代码来模拟出本次的I&#x2F;O操作，完成之后，将结果放回到I&#x2F;O共享页，并通知KVM模块中的I&#x2F;O操作捕获代码。最后，由KVM模块中的捕获代码读取I&#x2F;O共享页中的操作结果，并把结果返回到客户机中。当然，这个操作过程中客户机作为一个QEMU进程在等待I&#x2F;O时也可能被阻塞。另外，当客户机通过DMA（Direct Memory Access）访问大块I&#x2F;O之时，QEMU模拟程序将不会把操作结果放到I&#x2F;O共享页中，而是通过内存映射的方式将结果直接写到客户机的内存中去，然后通过KVM模块告诉客户机DMA操作已经完成。</p>
 <p>QEMU模拟I&#x2F;O设备的方式，其优点是可以通过软件模拟出各种各样的硬件设备，包括一些不常用的或者很老很经典的设备。在KVM客户机中使用这种方式，对于解决手上没有足够设备的软件开发及调试有非常大的好处。而它的缺点是，每次I&#x2F;O操作的路径比较长，有较多的VMEntry、VMExit发生，需要多次上下文切换（context switch），也需要多次数据复制，所以它的性能较差。</p>
-<p><img src="/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png" alt="全虚拟设备交互流程"></p>
+<p><img src="/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png" alt="全虚拟设备交互流程"></p>
 <p>Virtio设备交互流程：</p>
 <p>从总体上看，virtio 可以分为四层，包括前端 guest 中各种驱动程序模块（我们实现部分），后端 Hypervisor （实现在Qemu上）上的处理程序模块，中间用于前后端通信的 virtio 层和 virtio-ring 层，virtio 这一层实现的是虚拟队列接口，算是前后端通信的桥梁，而 virtio-ring 则是该桥梁的具体实现，它实现了两个环形缓冲区，分别用于保存前端驱动程序和后端处理程序执行的信息。</p>
 <p>Virtio半虚拟化驱动的方式，可以获得很好的I&#x2F;O性能，其性能几乎可以达到和native（即：非虚拟化环境中的原生系统）差不多的I&#x2F;O性能。所以，在使用KVM之时，如果宿主机内核和客户机都支持virtio的情况下，一般推荐使用virtio达到更好的性能。当然，virtio的也是有缺点的，它必须要客户机安装特定的Virtio驱动使其知道是运行在虚拟化环境中，且按照Virtio的规定格式进行数据传输。</p>
-<p><img src="/.com//Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png" alt="Virtio设备交互流程"></p>
+<p><img src="/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png" alt="Virtio设备交互流程"></p>
+<p>大家可能对KVM与qemu没有比较清晰的概念，下面再进行一下介绍：</p>
+<p>KVM的全称是Kernel-based Virtual Machine，其是一种基于linux内核的采用硬件辅助虚拟化技术的全虚拟化解决方案。它最初由以色列的初创公司Qumranet开发，并在linux-2.6.20中开始被纳入在linux内核，成为内核源码的一部分。KVM自诞生之初就定位于基于硬件辅助的虚拟化来提供全虚拟化的支持，其以内核模块的形式被加载。加载KVM模块的linux内核相当于变成了一个Hypervisor，同时依赖linux内核提供的各种功能来实现硬件管理，拥有极高的兼容性及可扩展性。</p>
+<p>上面提到KVM是作为一个内核模块出现的，所以它还得借助用户空间的程序来和用户进行交互。QEMU是一套由法布里斯·贝拉(Fabrice Bellard)所编写的以GPL许可证分发源码的模拟处理器，在GNU&#x2F;Linux平台上使用广泛。其本身是一个纯软件的支持CPU虚拟化、内存虚拟化及I&#x2F;O虚拟化等功能的用户空间程序。其借助KVM提供的虚拟化支持可以将CPU、内存等虚拟化工作交由KVM处理，自己则处理大多数I&#x2F;O虚拟化的功能，可以实现极高的虚拟化效率。</p>
+<p>所以Guest OS写寄存器&#x3D;一次VMexit&#x3D;一次用户态到内核态、内核态再到用户态的切换。</p>
 <h2 id="二、Virtio-over-PCI"><a href="#二、Virtio-over-PCI" class="headerlink" title="二、Virtio over PCI"></a>二、Virtio over PCI</h2><p>Virtio只是一个半虚拟化标准，或者说是一个协议，协议本身实现的载体和总线并无绑定。virtio协议实现过程中，CPU与外设之间的通知机制以及外设访问内存方式由实际连接CPU与外设的总线协议决定。Virtio根据其实现总线的区别可分为三种：virtio over pci、virtio over mmio、virtio over channel(基本不使用)。虚拟化场景中，主要采用PCI总线协议和MMIO总线协议：采用PCI总线协议的virtio设备叫virtio-pci设备，它可以支持virtio设备的热插拔特性(基于PCI总线的设备热插拔机制)，并可应用于真实物理外设；采用mmio总线协议的virito设备叫virito-mmio设备，它完全是针对虚拟机设计的，是一种轻量的虚拟总线机制，支持快速设备发现，但是无法使用在真实物理外设中。</p>
 <h2 id="三、Virtio具体机制（该部分参照rcore文档-Virtio部分）"><a href="#三、Virtio具体机制（该部分参照rcore文档-Virtio部分）" class="headerlink" title="三、Virtio具体机制（该部分参照rcore文档 Virtio部分）"></a>三、Virtio具体机制（该部分参照<a target="_blank" rel="noopener" href="http://rcore-os.cn/rCore-Tutorial-Book-v3/chapter9/2device-driver-2.html">rcore文档 Virtio部分</a>）</h2><p>virtio设备交互机制包括基于Notifications的事件通知和基于virtqueue虚拟队列的数据传输。事件通知是指设备和驱动程序必须通知对方，它们有数据需要对方处理。数据传输是指设备和驱动程序之间进行进行I&#x2F;O数据（如磁盘块数据、网络包）传输。</p>
 <h3 id="Notification通知"><a href="#Notification通知" class="headerlink" title="Notification通知"></a>Notification通知</h3><p>驱动程序和设备在交互过程中需要相互通知对方：驱动程序组织好相关命令&#x2F;信息要通知设备去处理I&#x2F;O事务，设备处理完I&#x2F;O事务后，要通知驱动程序进行后续事务，如回收内存，向用户进程反馈I&#x2F;O事务的处理结果等。</p>
@@ -189,7 +193,7 @@
 <p>描述符表 Descriptor Table：描述符表是描述符为组成元素的数组，每个描述符描述了一个内存buffer 的address&#x2F;length。而内存buffer中包含I&#x2F;O请求的命令&#x2F;数据（由virtio设备驱动填写），也可包含I&#x2F;O完成的返回结果（由virtio设备填写）等。</p>
 <p>可用环 Available Ring：一种vring，记录了virtio设备驱动程序发出的I&#x2F;O请求索引，即被virtio设备驱动程序更新的描述符索引的集合，需要virtio设备进行读取并完成相关I&#x2F;O操作；</p>
 <p>已用环 Used Ring：另一种vring，记录了virtio设备发出的I&#x2F;O完成索引，即被virtio设备更新的描述符索引d 集合，需要vrtio设备驱动程序进行读取并对I&#x2F;O操作结果进行进一步处理。</p>
-<p><img src="/.com//Virtqueue%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84.png" alt="Virtqueue 总体结构"></p>
+<p><img src="/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/Virtqueue%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84.png" alt="Virtqueue 总体结构"></p>
 <h3 id="描述符表-Descriptor-Table"><a href="#描述符表-Descriptor-Table" class="headerlink" title="描述符表 Descriptor Table"></a>描述符表 Descriptor Table</h3><p>描述符表用来指向virtio设备I&#x2F;O传输请求的缓冲区（buffer）信息，由 Queue Size 个Descriptor（描述符）组成。描述符中包括buffer的物理地址 – addr字段，buffer的长度 – len字段，可以链接到 next Descriptor 的next指针（用于把多个描述符链接成描述符链）。buffer所在物理地址空间需要设备驱动程序在初始化时分配好，并在后续由设备驱动程序在其中填写IO传输相关的命令&#x2F;数据，或者是设备返回I&#x2F;O操作的结果。多个描述符（I&#x2F;O操作命令，I&#x2F;O操作数据块，I&#x2F;O操作的返回结果）形成的描述符链可以表示一个完整的I&#x2F;O操作请求。</p>
 <h3 id="可用环-Available-Ring"><a href="#可用环-Available-Ring" class="headerlink" title="可用环 Available Ring"></a>可用环 Available Ring</h3><p>可用环在结构上是一个环形队列，其中的条目（item）仅由驱动程序写入，并由设备读出。可用环中的条目包含了一个描述符链的头部描述符的索引值。可用环用头指针（idx）和尾指针（last_avail_idx）表示其可用条目范围。virtio设备通过读取可用环中的条目可获取驱动程序发出的I&#x2F;O操作请求对应的描述符链，然后virtio设备就可以进行进一步的I&#x2F;O处理了。描述符指向的缓冲区具有可读写属性，可读的缓冲区用于Driver发送数据，可写的缓冲区用于接收数据。</p>
 <p>比如，对于virtio-blk设备驱动发出的一个读I&#x2F;O操作请求包含了三部分内容，由三个buffer承载，需要用到三个描述符 ：（1） “读磁盘块”，（2）I&#x2F;O操作数据块 – “数据缓冲区”，（3）I&#x2F;O操作的返回结果 –“结果缓冲区”）。这三个描述符形成的一个完成的I&#x2F;O请求链，virtio-blk从设备可通过读取第一个描述符指向的缓冲区了解到是“读磁盘块”操作，这样就可把磁盘块数据通过DMA操作放到第二个描述符指向的“数据缓冲区”中，然后把“OK”写入到第三个描述符指向的“结果缓冲区”中。</p>
@@ -302,7 +306,7 @@
                     <a class="tag-none-link" href="/tags/PCI/" rel="tag">PCI</a>, <a class="tag-none-link" href="/tags/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91/" rel="tag">操作系统开发</a>, <a class="tag-none-link" href="/tags/%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/" rel="tag">驱动开发</a>
                 </div>
                 <div class="pull-date">
-                    <time datetime="2023-03-24T18:37:01.369Z" itemprop="dateModified">最后编辑：2023-03-25</time>
+                    <time datetime="2023-03-24T19:10:21.787Z" itemprop="dateModified">最后编辑：2023-03-25</time>
                 </div>
             </div>
         </footer>
