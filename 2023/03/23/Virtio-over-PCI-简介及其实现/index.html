@@ -19,21 +19,21 @@
   <meta name="description" content="对于virtio的简介与其在PCI bus上的实现">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Virtio over PCI 简介及其实现">
-<meta property="og:url" content="http://example.com/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:url" content="https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/index.html">
 <meta property="og:site_name" content="YJwu2023的Blog">
 <meta property="og:description" content="对于virtio的简介与其在PCI bus上的实现">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="http://example.com/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
-<meta property="og:image" content="http://example.com/.com//Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
-<meta property="og:image" content="http://example.com/.com//Virtqueue%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84.png">
+<meta property="og:image" content="https://yjwu2023.github.io/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
+<meta property="og:image" content="https://yjwu2023.github.io/.com//Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
+<meta property="og:image" content="https://yjwu2023.github.io/.com//Virtqueue%E6%80%BB%E4%BD%93%E7%BB%93%E6%9E%84.png">
 <meta property="article:published_time" content="2023-03-23T13:10:17.000Z">
-<meta property="article:modified_time" content="2023-03-24T18:24:22.768Z">
+<meta property="article:modified_time" content="2023-03-24T18:37:01.369Z">
 <meta property="article:author" content="YJwu2023">
 <meta property="article:tag" content="操作系统开发">
 <meta property="article:tag" content="驱动开发">
 <meta property="article:tag" content="PCI">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://example.com/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
+<meta name="twitter:image" content="https://yjwu2023.github.io/.com//%E5%85%A8%E8%99%9A%E6%8B%9F%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png">
   
   <!-- 站点验证相关 -->
   
@@ -127,7 +127,7 @@
 
             <article itemscope itemtype="https://schema.org/Article">
     
-    <link itemprop="mainEntityOfPage" href="http://example.com/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/">
+    <link itemprop="mainEntityOfPage" href="https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/">
     <div class="kratos-hentry kratos-post-inner clearfix">
         <header class="kratos-entry-header">
             
@@ -143,7 +143,7 @@
                     <i class="fa fa-edit"></i> 
                     
                     
-                        ~6.88K
+                        ~6.28K
                     
                     字
                 </li>
@@ -154,7 +154,7 @@
             
             <div id="expire-alert" class="alert alert-warning hidden" role="alert">
                 <div class="icon"><i class="fa fa-warning"></i></div>
-                <div class="text"><p>本文最后编辑于 <time datetime="1679682262768"></time> 前，其中的内容可能需要更新。</p></div>
+                <div class="text"><p>本文最后编辑于 <time datetime="1679683021369"></time> 前，其中的内容可能需要更新。</p></div>
             </div>
             
             
@@ -177,10 +177,6 @@
 <p>从总体上看，virtio 可以分为四层，包括前端 guest 中各种驱动程序模块（我们实现部分），后端 Hypervisor （实现在Qemu上）上的处理程序模块，中间用于前后端通信的 virtio 层和 virtio-ring 层，virtio 这一层实现的是虚拟队列接口，算是前后端通信的桥梁，而 virtio-ring 则是该桥梁的具体实现，它实现了两个环形缓冲区，分别用于保存前端驱动程序和后端处理程序执行的信息。</p>
 <p>Virtio半虚拟化驱动的方式，可以获得很好的I&#x2F;O性能，其性能几乎可以达到和native（即：非虚拟化环境中的原生系统）差不多的I&#x2F;O性能。所以，在使用KVM之时，如果宿主机内核和客户机都支持virtio的情况下，一般推荐使用virtio达到更好的性能。当然，virtio的也是有缺点的，它必须要客户机安装特定的Virtio驱动使其知道是运行在虚拟化环境中，且按照Virtio的规定格式进行数据传输。</p>
 <p><img src="/.com//Virtio%E8%AE%BE%E5%A4%87%E4%BA%A4%E4%BA%92%E6%B5%81%E7%A8%8B.png" alt="Virtio设备交互流程"></p>
-<p>大家可能对KVM与qemu没有比较清晰的概念，下面再进行一下介绍：</p>
-<p>KVM的全称是Kernel-based Virtual Machine，其是一种基于linux内核的采用硬件辅助虚拟化技术的全虚拟化解决方案。它最初由以色列的初创公司Qumranet开发，并在linux-2.6.20中开始被纳入在linux内核，成为内核源码的一部分。KVM自诞生之初就定位于基于硬件辅助的虚拟化来提供全虚拟化的支持，其以内核模块的形式被加载。加载KVM模块的linux内核相当于变成了一个Hypervisor，同时依赖linux内核提供的各种功能来实现硬件管理，拥有极高的兼容性及可扩展性。</p>
-<p>上面提到KVM是作为一个内核模块出现的，所以它还得借助用户空间的程序来和用户进行交互。QEMU是一套由法布里斯·贝拉(Fabrice Bellard)所编写的以GPL许可证分发源码的模拟处理器，在GNU&#x2F;Linux平台上使用广泛。其本身是一个纯软件的支持CPU虚拟化、内存虚拟化及I&#x2F;O虚拟化等功能的用户空间程序。其借助KVM提供的虚拟化支持可以将CPU、内存等虚拟化工作交由KVM处理，自己则处理大多数I&#x2F;O虚拟化的功能，可以实现极高的虚拟化效率。</p>
-<p>所以Guest OS写寄存器&#x3D;一次VMexit&#x3D;一次用户态到内核态、内核态再到用户态的切换。</p>
 <h2 id="二、Virtio-over-PCI"><a href="#二、Virtio-over-PCI" class="headerlink" title="二、Virtio over PCI"></a>二、Virtio over PCI</h2><p>Virtio只是一个半虚拟化标准，或者说是一个协议，协议本身实现的载体和总线并无绑定。virtio协议实现过程中，CPU与外设之间的通知机制以及外设访问内存方式由实际连接CPU与外设的总线协议决定。Virtio根据其实现总线的区别可分为三种：virtio over pci、virtio over mmio、virtio over channel(基本不使用)。虚拟化场景中，主要采用PCI总线协议和MMIO总线协议：采用PCI总线协议的virtio设备叫virtio-pci设备，它可以支持virtio设备的热插拔特性(基于PCI总线的设备热插拔机制)，并可应用于真实物理外设；采用mmio总线协议的virito设备叫virito-mmio设备，它完全是针对虚拟机设计的，是一种轻量的虚拟总线机制，支持快速设备发现，但是无法使用在真实物理外设中。</p>
 <h2 id="三、Virtio具体机制（该部分参照rcore文档-Virtio部分）"><a href="#三、Virtio具体机制（该部分参照rcore文档-Virtio部分）" class="headerlink" title="三、Virtio具体机制（该部分参照rcore文档 Virtio部分）"></a>三、Virtio具体机制（该部分参照<a target="_blank" rel="noopener" href="http://rcore-os.cn/rCore-Tutorial-Book-v3/chapter9/2device-driver-2.html">rcore文档 Virtio部分</a>）</h2><p>virtio设备交互机制包括基于Notifications的事件通知和基于virtqueue虚拟队列的数据传输。事件通知是指设备和驱动程序必须通知对方，它们有数据需要对方处理。数据传输是指设备和驱动程序之间进行进行I&#x2F;O数据（如磁盘块数据、网络包）传输。</p>
 <h3 id="Notification通知"><a href="#Notification通知" class="headerlink" title="Notification通知"></a>Notification通知</h3><p>驱动程序和设备在交互过程中需要相互通知对方：驱动程序组织好相关命令&#x2F;信息要通知设备去处理I&#x2F;O事务，设备处理完I&#x2F;O事务后，要通知驱动程序进行后续事务，如回收内存，向用户进程反馈I&#x2F;O事务的处理结果等。</p>
@@ -213,7 +209,7 @@
 <h3 id="I-x2F-O后处理过程：（驱动程序执行）"><a href="#I-x2F-O后处理过程：（驱动程序执行）" class="headerlink" title="I&#x2F;O后处理过程：（驱动程序执行）"></a>I&#x2F;O后处理过程：（驱动程序执行）</h3><p> 设备驱动程序读取已用环的idx信息，读取已用环中的描述符索引，获得I&#x2F;O操作完成信息。</p>
 <h2 id="四、DragonOS实现Virtio-net"><a href="#四、DragonOS实现Virtio-net" class="headerlink" title="四、DragonOS实现Virtio-net"></a>四、DragonOS实现Virtio-net</h2><p>rCore提供了virtio-drivers库，目前最新版本为virtio-drivers 0.3.0。但其目前仅支持使用MMIO总线与Memory-mapped CAM的PCI总线的系统，这与我们系统有很大差异。于是我重写了virtio-drivers库的pci transport，使其在满足virtio-drivers的Transport trait的同时又能够正确使用我们操作系统的pci底层代码，将virtio-drivers库的发送逻辑与我们操作系统的底层架构结合起来，最终实现了Virtio-net（留有为其他Virtio设备准备的接口，以后其他常见Virtio设备添加进来简单修改下代码也能进行驱动）。</p>
 <h3 id="具体实现："><a href="#具体实现：" class="headerlink" title="具体实现："></a>具体实现：</h3><h4 id="①寻找Virtio-pci设备"><a href="#①寻找Virtio-pci设备" class="headerlink" title="①寻找Virtio-pci设备"></a>①寻找Virtio-pci设备</h4><p>寻找Virtio-pci设备由 virtio_device_search() 函数来实现：</p>
-<figure class="highlight plaintext"><figcaption><span>[lang: rust]</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fn virtio_device_search() -&gt; Result&lt;LinkedList&lt;Box&lt;DeviceFunction&gt;&gt;, VirtioError&gt; </span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fn virtio_device_search() -&gt; Result&lt;LinkedList&lt;Box&lt;DeviceFunction&gt;&gt;, VirtioError&gt; </span><br></pre></td></tr></table></figure>
 
 
 
@@ -270,7 +266,7 @@
     <script type="text/javascript">
         $(()=>{
             new QRCode("wechat-qr", {
-                text: "http://example.com/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/",
+                text: "https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/",
                 width: 150,
                 height: 150,
                 correctLevel : QRCode.CorrectLevel.H
@@ -282,7 +278,7 @@
             const qzoneBase     = "https://sns.qzone.qq.com/cgi-bin/qzshare/cgi_qzshare_onekey?";
             const facebookBase  = "https://www.facebook.com/sharer/sharer.php?";
             const twitterBase   = "https://twitter.com/intent/tweet?";
-            const hostUrl       = "http://example.com/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/";
+            const hostUrl       = "https://yjwu2023.github.io/2023/03/23/Virtio-over-PCI-%E7%AE%80%E4%BB%8B%E5%8F%8A%E5%85%B6%E5%AE%9E%E7%8E%B0/";
             const title         = "「Virtio over PCI 简介及其实现」";
             const excerpt       = `对于virtio的简介与其在PCI bus上的实现`;
             let _URL;
@@ -306,7 +302,7 @@
                     <a class="tag-none-link" href="/tags/PCI/" rel="tag">PCI</a>, <a class="tag-none-link" href="/tags/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F%E5%BC%80%E5%8F%91/" rel="tag">操作系统开发</a>, <a class="tag-none-link" href="/tags/%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/" rel="tag">驱动开发</a>
                 </div>
                 <div class="pull-date">
-                    <time datetime="2023-03-24T18:24:22.768Z" itemprop="dateModified">最后编辑：2023-03-25</time>
+                    <time datetime="2023-03-24T18:37:01.369Z" itemprop="dateModified">最后编辑：2023-03-25</time>
                 </div>
             </div>
         </footer>
